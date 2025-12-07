@@ -1,17 +1,24 @@
 from __future__ import print_function
-import os.path
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
+import os
 from datetime import datetime
 
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+
 # ----------------------------------------------------------------------
-# Google Docs API 설정
+# Google Docs / Drive API 설정
 # ----------------------------------------------------------------------
 SCOPES = [
-    'https://www.googleapis.com/auth/documents',
-    'https://www.googleapis.com/auth/drive'  # 드라이브 권한은 문서 검색을 위해 필요합니다.
+    "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/drive",  # 문서 검색/목록 조회 위해 필요
 ]
+
+# 서비스 계정 키 파일 경로
+# - 로컬에서는 환경변수 미설정 시 기본값 사용
+# - 컨테이너에서는 Docker run 시 -e GOOGLE_SERVICE_ACCOUNT_FILE=/secrets/service-account.json 등으로 지정
+SERVICE_ACCOUNT_FILE = os.path.expanduser(
+    os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "~/google-secrets/moya-sa.json")
+)
 
 # ----------------------------------------------------------------------
 # ⚠️ 중요: 오빠의 메인 금융 보고서 제목을 여기에 설정합니다.
@@ -19,39 +26,45 @@ SCOPES = [
 # ----------------------------------------------------------------------
 REPORT_DOCUMENT_TITLE = "AI 금융 분석 보고서"
 
-
-def get_credentials():
+# ----------------------------------------------------------------------
+# 서비스 계정 기반 인증 함수
+# ----------------------------------------------------------------------
+def _get_service_account_credentials():
     """
-    인증 정보를 가져오거나 새로 생성합니다.
-    client_secret.json 파일과 연동하여 token.json 파일을 생성합니다.
+    서비스 계정 JSON 키 파일을 이용해 Credentials 객체를 생성합니다.
+    브라우저 인증이 필요 없고, 완전 자동화에 적합합니다.
     """
-    creds = None
-
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-
-    if not creds or not creds.valid:
-        # client_secret.json이 없으면 인증을 진행할 수 없습니다.
-        if not os.path.exists('client_secret.json'):
-            print("\n[❌ 오류] 'client_secret.json' 파일이 필요합니다. Google Cloud Console에서 다운로드해주세요.")
-            return None
-
-        flow = InstalledAppFlow.from_client_secrets_file(
-            'client_secret.json', SCOPES
+    if not os.path.exists(SERVICE_ACCOUNT_FILE):
+        raise FileNotFoundError(
+            f"[❌ 오류] 서비스 계정 키 파일을 찾을 수 없습니다: {SERVICE_ACCOUNT_FILE}\n"
+            " - GCP 콘솔(IAM & Admin > Service Accounts)에서 JSON 키를 발급받아 저장하세요.\n"
+            " - GOOGLE_SERVICE_ACCOUNT_FILE 환경변수로 경로를 지정하거나,\n"
+            "   기본 경로(~/google-secrets/service-account-key.json)에 파일을 두세요."
         )
-        try:
-            # 브라우저 기반 인증 (로컬 서버 실행)
-            creds = flow.run_local_server(port=0)
-        except Exception as e:
-            print(f"\n[❌ 인증 오류] 로컬 서버 실행 중 오류 발생: {e}")
-            print("웹 브라우저에서 인증을 완료했는지 확인해주세요.")
-            return None
 
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
-
+    creds = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE,
+        scopes=SCOPES,
+    )
     return creds
 
+
+def get_docs_service():
+    """
+    Google Docs API 서비스 객체 생성 (서비스 계정 사용)
+    """
+    creds = _get_service_account_credentials()
+    service = build("docs", "v1", credentials=creds)
+    return service
+
+
+def get_drive_service():
+    """
+    Google Drive API 서비스 객체 생성 (서비스 계정 사용)
+    """
+    creds = _get_service_account_credentials()
+    service = build("drive", "v3", credentials=creds)
+    return service
 
 def find_document_id_by_title(title, drive_service):
     """
@@ -160,16 +173,10 @@ def save_report_to_doc(report_content: str) -> bool:
     보고서 내용을 Google Doc에 저장하는 메인 함수입니다.
     문서가 없으면 생성하고, 있으면 내용을 추가합니다.
     """
-    creds = get_credentials()
-    if not creds:
-        return False
+    docs_service = get_docs_service()
+    drive_service = get_drive_service()
 
     try:
-        # 서비스 빌드
-        # Docs API는 v1, Drive API는 파일 검색을 위해 v3를 사용합니다.
-        docs_service = build('docs', 'v1', credentials=creds)
-        drive_service = build('drive', 'v3', credentials=creds)
-
         # 1. 문서 ID 찾기 또는 생성
         doc_id = find_document_id_by_title(REPORT_DOCUMENT_TITLE, drive_service)
 
