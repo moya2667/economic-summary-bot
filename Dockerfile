@@ -17,12 +17,17 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # 5. 소스 코드 복사
+COPY config.py /app/config.py
 COPY google_doc_utils.py /app/google_doc_utils.py
 COPY financial_summary.py /app/financial_summary.py
+COPY test_googlesearch.py /app/test_googlesearch.py
 
-# 6. local에 저장되어 있는 sa를 참조하도록 설정 (volumn 마운트)
-# 실제 파일은 빌드 시 COPY 하지 않고, run 시 volume 으로 마운트하는 것을 추천
-ENV GOOGLE_SERVICE_ACCOUNT_FILE="/secrets/moya-sa.json"
+# 6. 환경변수 설정
+# 실제 서비스 계정 파일은 빌드 시 COPY 하지 않고, run 시 volume으로 마운트하는 것을 추천
+ENV GOOGLE_SERVICE_ACCOUNT_FILE="/secrets/moya-sa.json" \
+    REPORT_DOCUMENT_TITLE="AI 금융 분석 보고서" \
+    GEMINI_MODEL="gemini-2.5-flash" \
+    LOG_LEVEL="INFO"
 
 # 7. 컨테이너 실행 시 기본 명령
 CMD ["python", "financial_summary.py"]

@@ -2,6 +2,9 @@ import sys
 from google import genai
 from google.genai import types
 
+# config 모듈에서 설정값 가져오기
+from config import config
+
 try:
     # 'google_doc_utils.py' 파일에서 함수를 가져옵니다.
     from google_doc_utils import save_report_to_doc
@@ -45,27 +48,27 @@ def analyze_market_with_gemini():
 
     user_query = """    
     구글 검색 통해서 현재 시각 및 날짜를 가져오고,표현해라
-    현재 시각 기준으로 최근 일주일간 두 가지 질문에 대해 전문적인 금융 투자가의 관점에서 답변해줘. 
+    현재 날짜로부터 어제 기준으로 최근 일주일간 두 가지 질문에 대해 전문적인 금융 투자가의 관점에서 답변해줘. 
     **답변을 생성할 때, 반드시 구글 검색 결과만 사용해야 하며, 모델의 내부 지식(Internal Knowledge)을 사용해서 환율을 추정하거나 추측하지 마세요.**
    
     1. 미국 주요 경제 지표 발표 내용과 미국 증시(S&P500, Nasdaq)의 흐름과 등락율도 요약해줘. 
        주요 이벤트가 있었다면 그것이 시장에 미친 영향도 포함해줘.
 
-    2. 구글 검색 통해, 가장 최근 날짜의 은행고시 기준 한국 원화 환율을 표현해라 
+    2. 구글 검색 통해서,최근 날짜의 은행고시 기준 한국 원화 환율을 표현해라 
     """
 
     # -------------------------------------------------------------------------
     # 4. AI에게 질문 던지기 (검색 결과 바탕으로 생성)
     # -------------------------------------------------------------------------
     # 검색 도구 설정: generate_content 호출 시점에 도구를 전달합니다.
-    config = types.GenerateContentConfig(
+    generation_config = types.GenerateContentConfig(
         tools=[grounding_tool]
     )
 
     try:
         # tools 인자를 generate_content 함수에 직접 전달합니다.
         response = client.models.generate_content(
-            model="gemini-2.5-flash", contents=user_query, config=config
+            model=config.GEMINI_MODEL, contents=user_query, config=generation_config
         )
 
         # 결과 출력

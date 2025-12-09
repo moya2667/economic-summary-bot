@@ -5,26 +5,8 @@ from datetime import datetime
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
-# ----------------------------------------------------------------------
-# Google Docs / Drive API 설정
-# ----------------------------------------------------------------------
-SCOPES = [
-    "https://www.googleapis.com/auth/documents",
-    "https://www.googleapis.com/auth/drive",  # 문서 검색/목록 조회 위해 필요
-]
-
-# 서비스 계정 키 파일 경로
-# - 로컬에서는 환경변수 미설정 시 기본값 사용
-# - 컨테이너에서는 Docker run 시 -e GOOGLE_SERVICE_ACCOUNT_FILE=/secrets/service-account.json 등으로 지정
-SERVICE_ACCOUNT_FILE = os.path.expanduser(
-    os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "~/google-secrets/moya-sa.json")
-)
-
-# ----------------------------------------------------------------------
-# ⚠️ 중요: 오빠의 메인 금융 보고서 제목을 여기에 설정합니다.
-# 이 제목으로 문서를 찾거나 새로 생성합니다.
-# ----------------------------------------------------------------------
-REPORT_DOCUMENT_TITLE = "AI 금융 분석 보고서"
+# config 모듈에서 설정값 가져오기
+from config import config
 
 # ----------------------------------------------------------------------
 # 서비스 계정 기반 인증 함수
@@ -34,17 +16,17 @@ def _get_service_account_credentials():
     서비스 계정 JSON 키 파일을 이용해 Credentials 객체를 생성합니다.
     브라우저 인증이 필요 없고, 완전 자동화에 적합합니다.
     """
-    if not os.path.exists(SERVICE_ACCOUNT_FILE):
+    if not os.path.exists(config.GOOGLE_SERVICE_ACCOUNT_FILE):
         raise FileNotFoundError(
-            f"[❌ 오류] 서비스 계정 키 파일을 찾을 수 없습니다: {SERVICE_ACCOUNT_FILE}\n"
+            f"[❌ 오류] 서비스 계정 키 파일을 찾을 수 없습니다: {config.GOOGLE_SERVICE_ACCOUNT_FILE}\n"
             " - GCP 콘솔(IAM & Admin > Service Accounts)에서 JSON 키를 발급받아 저장하세요.\n"
             " - GOOGLE_SERVICE_ACCOUNT_FILE 환경변수로 경로를 지정하거나,\n"
-            "   기본 경로(~/google-secrets/service-account-key.json)에 파일을 두세요."
+            "   기본 경로(~/google-secrets/moya-sa.json)에 파일을 두세요."
         )
 
     creds = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE,
-        scopes=SCOPES,
+        config.GOOGLE_SERVICE_ACCOUNT_FILE,
+        scopes=config.GOOGLE_SCOPES,
     )
     return creds
 
@@ -124,11 +106,11 @@ def append_content_to_doc(document_id, report_title, content, docs_service):
         # 2. 새로운 보고서 블록 구성
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         # 이전 내용과의 구분을 위한 구분선 및 새 제목 추가
-        section_header = f"\n\n{'-' * 80}\n\n[{timestamp}] {report_title}\n\n"
+        section_header = f"\n\n{config.REPORT_SEPARATOR}\n\n[{timestamp}] {report_title}\n\n"
         full_content = section_header + content
 
         # 길이 계산을 위한 변수
-        header_len_prefix = len(f"\n\n{'-' * 80}\n\n")  # 구분선 길이만
+        header_len_prefix = len(f"\n\n{config.REPORT_SEPARATOR}\n\n")  # 구분선 길이만
         title_len = len(f"[{timestamp}] {report_title}")
 
         # 3. 문서 업데이트 요청 목록
@@ -178,17 +160,17 @@ def save_report_to_doc(report_content: str) -> bool:
 
     try:
         # 1. 문서 ID 찾기 또는 생성
-        doc_id = find_document_id_by_title(REPORT_DOCUMENT_TITLE, drive_service)
+        doc_id = find_document_id_by_title(config.REPORT_DOCUMENT_TITLE, drive_service)
 
         if not doc_id:
             # 문서가 없으면 생성
-            doc_id = create_document(REPORT_DOCUMENT_TITLE, docs_service)
+            doc_id = create_document(config.REPORT_DOCUMENT_TITLE, docs_service)
 
         if doc_id:
             # 2. 내용 추가
             append_content_to_doc(
                 document_id=doc_id,
-                report_title=REPORT_DOCUMENT_TITLE,
+                report_title=config.REPORT_DOCUMENT_TITLE,
                 content=report_content,
                 docs_service=docs_service
             )
@@ -211,8 +193,6 @@ if __name__ == "__main__":
     test_content = (
         f"[{datetime.now().strftime('%Y-%m-%d')}] "
         "이것은 find_or_create/append 로직을 테스트하기 위한 내용입니다. "
-        "두 번 실행하면 내용이 추가되어야 합니다. \n"
-        "장 건강을 위해 통곡물 식단을 고려해보세요, 오빠! 💪"
     )
 
     print("--- Google Docs API 통합 테스트 시작 ---")
