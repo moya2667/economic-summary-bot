@@ -5,6 +5,7 @@ Config 파일
 """
 
 import os
+import logging
 
 
 class Config:
@@ -42,6 +43,35 @@ class Config:
     BACKUP_DIR = os.path.expanduser(
         os.getenv("BACKUP_DIR", "~/economic-summary-bot/backups")
     )
+
+
+def setup_logging(log_level=None):
+    """로깅 설정을 초기화합니다."""
+    if log_level is None:
+        log_level = Config.LOG_LEVEL
+
+    # 로그 레벨 설정
+    numeric_level = getattr(logging, log_level.upper(), logging.INFO)
+
+    # 로깅 포맷 설정
+    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    date_format = "%Y-%m-%d %H:%M:%S"
+
+    # 기본 로깅 설정
+    logging.basicConfig(
+        level=numeric_level,
+        format=log_format,
+        datefmt=date_format
+    )
+
+    return logging.getLogger(__name__)
+
+
+def get_logger(name=None):
+    """로거 인스턴스를 반환합니다."""
+    if name is None:
+        name = __name__
+    return logging.getLogger(name)
 
 
 # 기본 설정 객체 생성

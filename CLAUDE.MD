@@ -10,17 +10,15 @@ AI 기반 경제 분석 보고서 자동 생성 봇입니다. Gemini API를 사�
 - 💱 **환율 정보**: 한국 원화 기준 실시간 환율 정보 제공
 - 📝 **Google Docs 연동**: 분석 결과를 자동으로 Google Docs에 저장
 - ⚙️ **설정 관리**: 중앙화된 설정 파일로 쉬운 관리
-- 📋 **구조화된 로깅**: 체계적인 로그 관리 시스템
 
 ## 프로젝트 구조
 
 ```
 economic-summary-bot/
-├── config.py                # 중앙화된 설정 관리 (로깅 설정 포함)
+├── config.py                # 중앙화된 설정 관리
 ├── financial_summary.py     # 메인 경제 분석 스크립트
 ├── google_doc_utils.py      # Google Docs API 유틸리티
-├── test_googlesearch.py     # Google 검색 테스트 스크립트 (로깅 적용)
-├── testGemini.py           # Gemini API 테스트 스크립트 (로깅 적용)
+├── test_googlesearch.py     # Google 검색 테스트 스크립트
 ├── requirements.txt         # Python 의존성
 ├── Dockerfile              # 컨테이너 설정
 └── README.md               # 프로젝트 설명서
@@ -48,23 +46,16 @@ pip install -r requirements.txt
 # 서비스 계정 키 파일 경로 설정
 export GOOGLE_SERVICE_ACCOUNT_FILE="~/google-secrets/moya-sa.json"
 
-# Gemini API 키 설정
-export GEMINI_API_KEY="your_gemini_api_key"
-
 # 보고서 문서 제목 설정 (선택사항)
 export REPORT_DOCUMENT_TITLE="AI 금융 분석 보고서"
 
 # Gemini 모델 설정 (선택사항)
 export GEMINI_MODEL="gemini-2.5-flash"
-
-# 로그 레벨 설정 (선택사항)
-export LOG_LEVEL="INFO"  # DEBUG, INFO, WARNING, ERROR
 ```
 
 #### Docker 환경
 ```bash
 docker run -e GOOGLE_SERVICE_ACCOUNT_FILE=/secrets/service-account.json \
-           -e GEMINI_API_KEY=your_gemini_api_key \
            -v /path/to/service-account.json:/secrets/service-account.json \
            economic-summary-bot
 ```
@@ -80,45 +71,20 @@ python financial_summary.py
 실행하면:
 1. 최신 경제 뉴스와 데이터를 Google 검색으로 수집
 2. Gemini AI가 전문적인 금융 투자가 관점에서 분석
-3. 분석 결과를 구조화된 로그로 출력
+3. 분석 결과를 콘솔에 출력
 4. Google Docs에 자동으로 보고서 저장
 
-### 테스트 스크립트 실행
+### Google 검색 테스트
 
 ```bash
-# Gemini API 테스트
-python testGemini.py
-
-# Google 검색 통합 테스트
 python test_googlesearch.py
+```
 
-# Google Docs 유틸리티 테스트
+### 개별 모듈 테스트
+
+```bash
 python google_doc_utils.py
 ```
-
-## 로깅 시스템
-
-프로젝트는 구조화된 로깅 시스템을 사용합니다:
-
-### 로그 형식
-```
-2024-12-18 14:30:01 - module_name - INFO - 메시지 내용
-```
-
-### 로그 레벨 설정
-환경변수로 로그 레벨을 조정할 수 있습니다:
-```bash
-export LOG_LEVEL=DEBUG    # 가장 상세한 로그
-export LOG_LEVEL=INFO     # 기본 정보 로그 (기본값)
-export LOG_LEVEL=WARNING  # 경고 이상만
-export LOG_LEVEL=ERROR    # 오류만
-```
-
-### 로깅 기능
-- **진행 상태 추적**: 각 단계별 실행 상황 로깅
-- **API 호출 로깅**: Gemini API 요청/응답 상태 기록
-- **오류 추적**: 상세한 오류 정보와 스택 트레이스
-- **성능 모니터링**: 작업 완료 시간 기록
 
 ## 설정 파일 (config.py)
 
@@ -135,16 +101,12 @@ class Config:
     # Gemini API 설정
     GEMINI_MODEL = "gemini-2.5-flash"
 
-    # 로그 설정
-    LOG_LEVEL = "INFO"
-
     # 기타 설정들...
 ```
 
 ### 환경변수로 설정 오버라이드
 
 - `GOOGLE_SERVICE_ACCOUNT_FILE`: 서비스 계정 파일 경로
-- `GEMINI_API_KEY`: Gemini API 키
 - `REPORT_DOCUMENT_TITLE`: 보고서 문서 제목
 - `GEMINI_MODEL`: 사용할 Gemini 모델
 - `LOG_LEVEL`: 로그 레벨 설정
@@ -184,32 +146,27 @@ docker build -t economic-summary-bot .
 ### 컨테이너 실행
 ```bash
 docker run -e GOOGLE_SERVICE_ACCOUNT_FILE=/secrets/service-account.json \
-           -e GEMINI_API_KEY=your_gemini_api_key \
            -v /path/to/service-account.json:/secrets/service-account.json \
            economic-summary-bot
 ```
 
-## 오류 처리
+## 주의사항
 
-### 일반적인 오류 및 해결방법
+1. **API 키 보안**: 서비스 계정 JSON 파일을 안전하게 보관하세요
+2. **API 사용량**: Gemini API와 Google APIs의 사용량 제한을 확인하세요
+3. **권한 설정**: 서비스 계정에 Google Docs 및 Drive 접근 권한이 있는지 확인하세요
 
-#### 1. Gemini API 503 오류
-```
-503 UNAVAILABLE: The model is overloaded. Please try again later.
-```
-- **해결방법**: 잠시 기다린 후 재시도 (자동 재시도 로직 구현 예정)
-- **임시 해결**: 다른 모델 사용 (`gemini-1.5-flash`)
+## 트러블슈팅
 
-#### 2. 인증 오류
+### 인증 오류
 - 서비스 계정 JSON 파일 경로가 올바른지 확인
 - 파일 권한이 적절한지 확인 (600 권장)
-- `GEMINI_API_KEY` 환경변수가 설정되었는지 확인
 
-#### 3. API 오류
+### API 오류
 - Google Cloud Console에서 필요한 API들이 활성화되었는지 확인
 - API 사용량 한도를 초과하지 않았는지 확인
 
-#### 4. 문서 생성 오류
+### 문서 생성 오류
 - 서비스 계정이 Google Drive에 문서를 생성할 권한이 있는지 확인
 - 기존 문서에 대한 편집 권한이 있는지 확인
 
